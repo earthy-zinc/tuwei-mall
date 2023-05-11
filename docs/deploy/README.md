@@ -233,7 +233,7 @@ mkdir -p /opt/docker_volume/seata/config
 **复制容器配置至宿主机**
 
 ```bash
-docker cp seata-server:/seata-server/resources/ /opt/docker_volume//seata/config
+docker cp seata-server:/seata-server/resources/ /opt/docker_volume/seata/config
 ```
 
 注意复制到宿主机的目录，下文启动容器需要做宿主机和容器的目录挂载
@@ -246,7 +246,7 @@ docker rm -f seata-server
 
 ##### 2. 修改启动配置
 
-在获取到 seata-server 的应用配置之后，因为这里采用 Nacos 作为 seata 的配置中心和注册中心，所以需要修改 application.yml 里的配置中心和注册中心地址，详细配置我们可以从 application.example.yml 拿到。
+目前seata的配置资源都在/opt/docker_volume/seata/config文件夹下，我们在获取到 seata-server 的应用配置之后，因为这里采用 Nacos 作为 seata 的配置中心和注册中心，所以需要修改 application.yml 里的配置中心和注册中心地址，详细配置我们可以从 application.example.yml 拿到。
 
 **application.yml 原配置**
 
@@ -285,8 +285,8 @@ docker run -d --restart=always \
 --name seata-server   \
 -p 8091:8091 \
 -p 7091:7091 \
--e SEATA_IP=192.168.10.100 \
--v /opt/docker_volume/seata/config:/seata-server/resources \
+-e SEATA_IP=192.168.210.100 \
+-v /opt/docker_volume/seata/config/re's:/seata-server/resources \
 seataio/seata-server:1.5.2 
 ```
 
