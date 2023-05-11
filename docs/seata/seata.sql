@@ -1,3 +1,9 @@
+-- 1. 执行语句创建名为 seata 的数据库
+CREATE DATABASE seata DEFAULT CHARACTER SET utf8mb4 DEFAULT COLLATE utf8mb4_general_ci;
+
+-- 2.执行脚本完成 Seata 表结构的创建
+use seata;
+
 -- -------------------------------- The script used when storeMode is 'db' --------------------------------
 -- the table to store GlobalSession data
 CREATE TABLE IF NOT EXISTS `global_table`
@@ -66,4 +72,7 @@ CREATE TABLE IF NOT EXISTS `distributed_lock`
     ) ENGINE = InnoDB
     DEFAULT CHARSET = utf8mb4;
 
-INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('HandleAllSession', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('AsyncCommitting', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('RetryCommitting', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('RetryRollbacking', ' ', 0);
+INSERT INTO `distributed_lock` (lock_key, lock_value, expire) VALUES ('TxTimeoutCheck', ' ', 0);
