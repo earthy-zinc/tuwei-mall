@@ -345,14 +345,14 @@ docker run -d \
 ```bash
 mkdir /usr/local/src/jdk && cd /usr/local/src/jdk
 # 解压
-tar -zxvf jdk-8u281-linux-x64.tar.gz 
+tar -zxvf jdk-8u351-linux-x64.tar.gz 
 # 配置一下环境变量
 vim  /etc/profile
 ```
 
 在profile文件的最下面填入这四行配置
 ```
-JAVA_HOME=/usr/local/src/jdk/jdk1.8.0_281
+JAVA_HOME=/usr/local/src/jdk/jdk1.8.0_35
  
 PATH=$JAVA_HOME/bin:$PATH
  
@@ -427,7 +427,7 @@ docker run \
 -p 8000:8080 \
 -p 50000:5000 \
 -v /opt/docker_volume/jenkins:/var/jenkins_home \
--v //usr/local/src/jdk/jdk1.8.0_281:/usr/local/jdk \
+-v //usr/local/src/jdk/jdk1.8.0_351:/usr/local/jdk \
 -v /usr/local/maven/apache-maven-3.8.5:/usr/local/maven \
 -v /usr/local/git/git-2.33.1/bin/git:/usr/local/git \
 -v /etc/localtime:/etc/localtime \
