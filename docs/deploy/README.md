@@ -19,7 +19,12 @@ Pei-Linux-100需要开放的端口
 | 8848  | nacos        |      |
 | 9001  | minio        |      |
 | 8000  | jenkins      |      |
-| 1080  | gitlab       |      |
+| 80    | gitlab       |      |
+| 9922  | gitlab ssh   |      |
+| 8081  | maven nexus  |      |
+|       |              |      |
+|       |              |      |
+|       |              |      |
 | 9999  | gateway网关  |      |
 | 9527  | 后台管理系统 |      |
 
@@ -422,11 +427,12 @@ docker run \
 -p 8000:8080 \
 -p 50000:5000 \
 -v /opt/docker_volume/jenkins:/var/jenkins_home \
+-v //usr/local/src/jdk/jdk1.8.0_281:/usr/local/jdk \
 -v /usr/local/maven/apache-maven-3.8.5:/usr/local/maven \
--v /usr/local/git/git-2.33.1/bin:/usr/local/git \
+-v /usr/local/git/git-2.33.1/bin/git:/usr/local/git \
 -v /etc/localtime:/etc/localtime \
 --privileged=true \
-jenkins/jenkins:lts
+jenkins/jenkins:2.404
 ```
 
 #### 访问控制台
@@ -461,10 +467,26 @@ jenkins/jenkins:lts
 > # 新建authorized_keys文件。把你在上一步生成的公钥（id_rsa.pub）写入到authorized_keys中
 > touch  authorized_keys
 > ```
->
-> 
->
-> 
+
+#### 更改国内插件镜像
+
+```bash
+#进容器内部
+docker exec -it jenkins /bin/bash
+cd /var/jenkins_home/updates
+
+sed -i 's/http:\/\/updates.jenkins-ci.org\/download/https:\/\/mirrors.tuna.tsinghua.edu.cn\/jenkins/g' default.json && sed -i 's/http:\/\/www.google.com/https:\/\/www.baidu.com/g' default.json
+```
+
+#### 替换国内插件更新地址
+
+替换插件更新地址、将国外官方地址替换为国内清华大学jenkins插件地址
+
+Jenkins > Manage Jenkins > Plugin Manager、点击Advanced页面替换Update Site的url、并submit
+
+`https://mirrors.tuna.tsinghua.edu.cn/jenkins/updates/update-center.json`
+
+在浏览器输入 http://192.168.210.100:8000/restart 、重启jenkins使配置生效
 
 ### gitlab搭建
 
@@ -472,8 +494,8 @@ jenkins/jenkins:lts
 
 ```bash
 docker run \
- -itd \
- -p 9980:80 \
+ -d \
+ -p 80:80 \
  -p 9922:22 \
  -v /opt/docker_volume/gitlab/etc:/etc/gitlab  \
  -v /opt/docker_volume/gitlab/log:/var/log/gitlab \
@@ -510,7 +532,8 @@ vi /etc/gitlab/gitlab.rb
 
 ```
 #gitlab访问地址，可以写域名。如果端口不写的话默认为80端口
-external_url 'http://192.168.210.100:9980'
+#经过测试，更改为其他端口就访问失败，因此不能修改
+external_url 'http://192.168.210.100'
 #ssh主机ip
 gitlab_rails['gitlab_ssh_host'] = '192.168.210.100'
 #ssh连接端口
@@ -544,11 +567,9 @@ exit
 
 #### 访问控制台
 
-* 控制台地址： http://192.168.210.100:1080
+* 控制台地址： http://192.168.210.100:9980
 * 重置root账号密码：如下所示
-* 创建组织：
-  * group name：
-  * group url：
+* 创建组织：pei group
 
 #### 修改密码
 
@@ -574,9 +595,12 @@ exit
 #### 创建和启动容器
 
 ```bash
-docker run -d -p 5000:5000 \
--v /opt/docker_volume/registry/:/tmp/registry \
+docker run -d \
+-p 5000:5000 \
+-v /opt/docker_volume/registry:/tmp/registry \
 --privileged=true \
+--name registry \
+--restart always \
 registry
 ```
 
@@ -624,6 +648,140 @@ docker pull Host:Port/Repository:Tag
 
 ### maven仓库搭建
 
+#### 创建和启动容器
+
+```bash
+mkdir -p /opt/docker_volume/nexus
+chmod 777 /opt/docker_volume/nexus
+docker run \
+-itd \
+--restart=always \
+-p 8081:8081 \
+--name nexus \
+-e NEXUS_CONTEXT=nexus \
+-v /opt/docker_volume/nexus:/nexus-data \
+sonatype/nexus3
+```
+
+* 控制台地址： http://192.168.210.100:8081/nexus
+* 管理员账号：admin
+* 密码：使用该命令查看管理员密码 `cat /opt/docker_volume/nexus/admin.password`
+* 密码改为：123456
+
+#### 默认仓库说明
+
+* maven-central：maven中央库，默认从https://repo1.maven.org/maven2/拉取jar
+* maven-releases：私库发行版jar，初次安装请将Deployment policy设置为Allow redeploy
+* maven-snapshots：私库快照（调试版本）jar
+* maven-public：仓库分组，把上面三个仓库组合在一起对外提供服务，在本地maven基础配置settings.xml或项目pom.xml中使用
+
+#### Nexus仓库类型介绍
+* hosted：本地仓库，通常我们会部署自己的构件到这一类型的仓库。比如公司的第二方库。
+* proxy：代理仓库，它们被用来代理远程的公共仓库，如maven中央仓库。
+* group：仓库组，用来合并多个hosted/proxy仓库，当你的项目希望在多个repository使用资源时就不需要多次引用了，只需要引用一个group即可。
+
+#### 配置阿里云代理仓库
+
+* 新建仓库(Create repository):
+  * 填写仓库名称——maven-aliyun，并填入仓库url为`https://maven.aliyun.com/repository/public`
+* 配置仓库组(默认已有一个maven-public)
+  * 将maven-aliyun仓库添加到maven-public仓库组中
+
+#### 修改maven配置文件
+
+修改conf/setting.xml，添加如下内容
+
+```xml
+<xml>
+    <!--nexus服务器,id为组仓库name-->
+    <servers>
+        <server>
+            <id>maven-public</id>
+            <username>admin</username>
+            <password>123456</password>
+        </server>
+        <server>
+            <id>maven-releases</id>  <!--对应pom.xml的id=releases的仓库-->
+            <username>admin</username>
+            <password>123456</password>
+        </server>
+        <server>
+            <id>maven-snapshots</id> <!--对应pom.xml中id=snapshots的仓库-->
+            <username>admin</username>
+            <password>123456</password>
+        </server>
+    </servers>
+
+    <!--仓库组的url地址，id和name可以写组仓库name，mirrorOf的值设置为central-->
+    <mirrors>
+        <mirror>
+            <id>maven-public</id>
+            <name>maven-public</name>
+            <!--镜像采用配置好的组的地址-->
+            <url>http://192.168.210.100:8081/nexus/repository/maven-public/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+        <mirror>
+            <id>aliyunmaven</id>
+            <mirrorOf>*</mirrorOf>
+            <name>阿里云公共仓库</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </mirror>
+    </mirrors>
+</xml>
+
+```
+
+#### 项目pom.xml配置
+
+```xml
+<xml>
+    <repositories>
+        <repository>
+            <id>maven-public</id>
+            <name>Nexus Repository</name>
+            <url>http://192.168.210.100:8081/nexus/repository/maven-public/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <id>maven-public</id>
+            <name>Nexus Plugin Repository</name>
+            <url>http://192.168.210.100:8081/nexus/repository/maven-public/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </pluginRepository>
+    </pluginRepositories>
+    <!--项目分发信息，在执行mvn deploy后表示要发布的位置。有了这些信息就可以把网站部署到远程服务器或者把构件jar等部署到远程仓库。 -->
+    <distributionManagement>
+        <repository><!--部署项目产生的构件到远程仓库需要的信息 -->
+            <id>maven-releases</id>
+            <!-- 此处id和settings.xml的id保持一致 -->
+            <name>Nexus Release Repository</name>
+            <url>http://192.168.210.100:8081/nexus/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <!--构件的快照部署到哪里？如果没有配置该元素，默认部署到repository元素配置的仓库，参见distributionManagement/repository元素 -->
+            <id>maven-snapshots</id>
+            <!-- 此处id和settings.xml的id保持一致 -->
+            <name>Nexus Snapshot Repository</name>
+            <url>http://192.168.210.100:8081/nexus/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
+</xml>
+
+```
+
 
 
 ### npm仓库的搭建
@@ -634,16 +792,26 @@ docker pull Host:Port/Repository:Tag
 
 #### 创建临时容器
 
+启动前需要先创建Nginx外部挂载的配置文件，之所以要先创建 , 是因为Nginx本身容器只存在/etc/nginx 目录 , 本身就不创建 nginx.conf 文件
+当服务器和容器都不存在 nginx.conf 文件时, 执行启动命令的时候 docker会将nginx.conf 作为目录创建 , 这并不是我们想要的结果 。
+
+（ /home/nginx/conf/nginx.conf）
+
 ```bash
+# 创建挂载目录
+mkdir -p /opt/docker_volume/nginx/conf
+mkdir -p /opt/docker_volume/log
+mkdir -p /opt/docker_volume/nginx/html
+# 创建文件
+touch /opt/docker_volume/nginx/conf/nginx.conf
 # 生成容器
 docker run --name nginx -p 9527:80 -d nginx
-mkdir -p /opt/docker_volume/nginx/conf
-# 将容器nginx.conf文件, conf.d, html文件夹下内容复制到宿主机
+# 将容器nginx.conf文件, conf.d文件夹下内容, html文件夹复制到宿主机
 docker cp nginx:/etc/nginx/nginx.conf /opt/docker_volume/nginx/conf/nginx.conf
 
 docker cp nginx:/etc/nginx/conf.d /opt/docker_volume/nginx/conf/conf.d
 
-docker cp nginx:/usr/share/nginx/html /opt/docker_volume/nginx/html
+docker cp nginx:/usr/share/nginx/html /opt/docker_volume/nginx
 # 删除临时容器
 docker rm -f nginx
 ```
@@ -655,10 +823,17 @@ docker run --restart=always \
 --name nginx \
 -p 9527:9527 \
 -p 9528:9528 \
+-v /opt/docker_volume/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+-v /opt/docker_volume/nginx/conf/conf.d:/etc/nginx/conf.d \
+-v /opt/docker_volume/nginx/log:/var/log/nginx \
 -v /opt/docker_volume/nginx/html:/usr/share/nginx/html \
--v /opt/docker_volume/nginx/conf:/etc/nginx \
 -d nginx
 ```
+
+* -v /opt/docker_volume/nginx/conf/nginx.conf:/etc/nginx/nginx.conf	挂载nginx.conf配置文件
+* -v /opt/docker_volume/nginx/conf/conf.d:/etc/nginx/conf.d	挂载nginx配置文件
+* -v /opt/docker_volume/nginx/log:/var/log/nginx	挂载nginx日志文件
+* -v /opt/docker_volume/nginx/html:/usr/share/nginx/html	挂载nginx内容
 
 ## 项目启动
 
