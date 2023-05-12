@@ -1,0 +1,13 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="有序运行" type="CompoundRunConfigurationType">
+    <toRun name="AuthApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="GatewayApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="LaboratoryApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="OmsApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="PmsApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="SmsApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="SystemApplication" type="SpringBootApplicationConfigurationType" />
+    <toRun name="UmsApplication" type="SpringBootApplicationConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>
