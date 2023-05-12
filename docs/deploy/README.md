@@ -9,9 +9,23 @@
 | Pei-Linux-102 | 192.168.210.102 | 4    | 8    |
 | Pei-Linux-103 | 192.168.210.103 | 4    | 8    |
 
+Pei-Linux-100需要开放的端口
+
+| 端口  | 说明         | 网址 |
+| ----- | ------------ | ---- |
+| 3306  | mysql        |      |
+| 6379  | redis        |      |
+| 15672 | rabbitmq     |      |
+| 8848  | nacos        |      |
+| 9001  | minio        |      |
+| 8000  | jenkins      |      |
+| 1080  | gitlab       |      |
+| 9999  | gateway网关  |      |
+| 9527  | 后台管理系统 |      |
 
 
-### docker环境搭建
+
+### docker搭建
 
 #### 安装docker
 
@@ -50,7 +64,7 @@ systemctl daemon-reload
 systemctl restart docker
 ```
 
-#### 注意事项：
+#### 注意事项
 
 如果以非 root 用户可以运行 docker 时，
 需要执行 `sudo usermod -aG docker cmsblogs` 命令然后重新登陆，
@@ -315,24 +329,326 @@ docker run -d \
 
 #### 访问控制台
 
- **访问MinIO控制台**
-
 控制台地址： [http://192.168.210.100:9001](http://192.168.210.100:9001/)
 
 用户名/密码： minioadmin/minioadmin
 
 ### jenkins搭建
 
+#### JDK安装
+
 ```bash
-docker run --restart=always \
+mkdir /usr/local/src/jdk && cd /usr/local/src/jdk
+# 解压
+tar -zxvf jdk-8u281-linux-x64.tar.gz 
+# 配置一下环境变量
+vim  /etc/profile
+```
+
+在profile文件的最下面填入这四行配置
+```
+JAVA_HOME=/usr/local/src/jdk/jdk1.8.0_281
+ 
+PATH=$JAVA_HOME/bin:$PATH
+ 
+CLASSPATH=.:$JAVA_HOME/jre/lib/ext:$JAVA_HOME/lib/tools.jar
+ 
+export PATH JAVA_HOME CLASSPATH
+```
+
+```bash
+# 使配置立即生效
+source /etc/profile
+# 测试安装是否成功
+java  -version
+```
+
+#### maven安装
+
+```bash
+mkdir /usr/local/maven && cd /usr/local/maven 
+#然后将gz包放到maven目录里面
+tar -zxvf apache-maven-3.8.5-bin.tar.gz	#解压gz包
+vi   /etc/profile  
+```
+
+在profile中添加如下配置
+
+```
+export M2_HOME=/usr/local/maven/apache-maven-3.8.5
+export PATH=${PATH}:$JAVA_HOME/bin:$M2_HOME/bin
+```
+
+
+```bash
+source /etc/profile        #重新加载配置文件
+mvn -v
+```
+
+#### git安装
+
+```bash
+mkdir /usr/local/git && cd /usr/local/git 
+# 将上面获取到的gz包放入git目录中
+tar -zxvf git-2.33.1.tar.gz   #解压gz包
+# 安装相关依赖
+yum update -y && yum install curl -y
+yum install curl-devel expat-devel gettext-devel openssl-devel zlib-devel
+# 编译源文件
+make prefix=/usr/local/git/git-2.33.1 all      
+make prefix=/usr/local/git/git-2.33.1 install
+
+vi /etc/profile
+```
+
+在profile中添加如下配置
+
+```
+export PATH=/usr/local/git/git-2.33.1/bin:$PATH
+```
+
+```bash
+source /etc/profile        #重新加载配置文件
+git  --version
+```
+
+#### 创建和启动容器
+
+```bash
+docker run \
+--restart=always \
 -di \
 --name=jenkins \
 -p 8000:8080 \
+-p 50000:5000 \
 -v /opt/docker_volume/jenkins:/var/jenkins_home \
+-v /usr/local/maven/apache-maven-3.8.5:/usr/local/maven \
+-v /usr/local/git/git-2.33.1/bin:/usr/local/git \
+-v /etc/localtime:/etc/localtime \
+--privileged=true \
 jenkins/jenkins:lts
 ```
 
+#### 访问控制台
+
+* 控制台地址： http://192.168.210.100:8000
+* 管理员密码：使用该命令查看管理员密码 `docker logs jenkins`
+* 安装推荐的插件
+* 创建管理员账号：
+  * 用户名：admin
+  * 密码：123456
+  * 全名：管理员
+  * 邮件地址：1066365803@qq.com
+* 进行实例配置，配置Jenkins的URL：http://192.168.210.100:8000
+* 点击系统管理->插件管理，进行自定义的插件安装：
+  * 根据角色管理权限的插件：Role-based Authorization Strategy
+  * 远程使用ssh的插件：SSH plugin
+  * 中文插件：chinese
+* 通过系统管理->全局工具配置来进行全局工具的配置
+  * 新增maven的安装配置：/usr/local/maven
+  * 新增git的安装配置：/usr/local/git
+* 在系统管理->系统配置中添加全局ssh的配置，将4个虚拟机配置到jenkins中
+  * hostname: 192.168.210.100
+  * port: 22
+  * username: root
+  * key: `*****`
+
+> ```bash
+> # 被访问的服务器（被控制端）执行命令获取ssh公钥和私钥
+> ssh-keygen -t rsa -C '1066365803@qq.com'
+> # 到需要远程登录的服务器（控制端）中执行：
+> cd /root/.ssh
+> # 新建authorized_keys文件。把你在上一步生成的公钥（id_rsa.pub）写入到authorized_keys中
+> touch  authorized_keys
+> ```
+>
+> 
+>
+> 
+
+### gitlab搭建
+
+#### 创建和启动容器
+
+```bash
+docker run \
+ -itd \
+ -p 9980:80 \
+ -p 9922:22 \
+ -v /opt/docker_volume/gitlab/etc:/etc/gitlab  \
+ -v /opt/docker_volume/gitlab/log:/var/log/gitlab \
+ -v /opt/docker_volume/gitlab/opt:/var/opt/gitlab \
+ --restart always \
+ --privileged=true \
+ --name gitlab \
+ gitlab/gitlab-ce:latest
+```
+
+#### 开关防火墙的指定端口(无用)
+
+```bash
+# 开启1080端口
+firewall-cmd --zone=public --add-port=1080/tcp --permanent
+# 关闭1080端口
+firewall-cmd --zone=public --remove-port=1080/tcp --permanent
+# 重启防火墙才能生效
+systemctl restart firewalld
+# 查看已经开放的端口
+firewall-cmd --list-ports
+```
+
+#### 修改配置
+
+```bash
+#进容器内部
+docker exec -it gitlab /bin/bash
+#修改gitlab.rb
+vi /etc/gitlab/gitlab.rb
+```
+
+加入如下
+
+```
+#gitlab访问地址，可以写域名。如果端口不写的话默认为80端口
+external_url 'http://192.168.210.100:9980'
+#ssh主机ip
+gitlab_rails['gitlab_ssh_host'] = '192.168.210.100'
+#ssh连接端口
+gitlab_rails['gitlab_shell_ssh_port'] = 9922
+```
+
+```bash
+# 让配置生效
+gitlab-ctl reconfigure
+```
+
+修改http和ssh配置
+
+```bash
+vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
+```
+
+```yml
+gitlab:
+    host: 192.168.124.194
+    port: 9980 # 这里改为9980
+    https: false
+```
+
+```bash
+#重启gitlab 
+gitlab-ctl restart
+#退出容器 
+exit
+```
+
+#### 访问控制台
+
+* 控制台地址： http://192.168.210.100:1080
+* 重置root账号密码：如下所示
+* 创建组织：
+  * group name：
+  * group url：
+
+#### 修改密码
+
+```bash
+# 进入容器内部
+docker exec -it gitlab /bin/bash
+# 进入控制台
+gitlab-rails console -e production
+# 查询id为1的用户，id为1的用户是超级管理员
+user = User.where(id:1).first
+# 修改密码为pei12345678
+user.password='pei12345678'
+# 保存
+user.save!
+# 退出
+exit
+```
+
+
+
+### docker仓库搭建
+
+#### 创建和启动容器
+
+```bash
+docker run -d -p 5000:5000 \
+-v /opt/docker_volume/registry/:/tmp/registry \
+--privileged=true \
+registry
+```
+
+- `--privileged=true`：Docker挂载主机目录Docker访问出现`cannot open directory .: Permission denied`的解决办法。
+- `registry`：docker registry镜像。
+- 使用`docker ps`命令查看正在运行的registry的容器ID，需要之一的是`COMMAND`与别的容器不太一样。在进入registry容器的时候的命令参数不能使用`/bin/bash`，而要使用：`bin/sh`、`bash`、`sh`三个中的一个。输入命令进入registry容器。
+
+#### 本地新建镜像发布到私有仓库
+
+##### 查看私服库Registry镜像数量
+
+```bash
+curl -XGET http://192.168.210.100:5000/v2/_catalog
+```
+
+##### 修改镜像标签
+
+为了符合私服规范，我们需要修改新镜像的Tag标签
+
+```bash
+docker tag <镜像ID或镜像名>:<Tag> Host:Port/Repository:Tag
+```
+
+* 镜像ID或镜像名：要上传到私有库Registry的镜像ID或名字；
+* Tag：要上传的镜像版本号；
+* Host：本地私有库的映射网址（本文为192.168.210.100）；
+* Post：本地私有库的映射端口（本文为5000）；
+* Repository:Tag：上传到私有库Registry后自定义的镜像名字、版本号。
+
+##### 修改配置文件使docker支持http
+
+修改`/etc/docker/daemon.json`配置文件，添加`"insecure-registries" :  ["192.168.210.100:5000"]`
+
+##### 推送到私服
+
+```bash
+docker push Host:Port/Repository:Tag
+```
+
+##### 将私有库的镜像拉取到本地并运行
+
+```bash
+docker pull Host:Port/Repository:Tag
+```
+
+### maven仓库搭建
+
+
+
+### npm仓库的搭建
+
+
+
 ### nginx搭建
+
+#### 创建临时容器
+
+```bash
+# 生成容器
+docker run --name nginx -p 9527:80 -d nginx
+mkdir -p /opt/docker_volume/nginx/conf
+# 将容器nginx.conf文件, conf.d, html文件夹下内容复制到宿主机
+docker cp nginx:/etc/nginx/nginx.conf /opt/docker_volume/nginx/conf/nginx.conf
+
+docker cp nginx:/etc/nginx/conf.d /opt/docker_volume/nginx/conf/conf.d
+
+docker cp nginx:/usr/share/nginx/html /opt/docker_volume/nginx/html
+# 删除临时容器
+docker rm -f nginx
+```
+
+#### 创建和启动容器
 
 ```bash
 docker run --restart=always \
@@ -340,7 +656,7 @@ docker run --restart=always \
 -p 9527:9527 \
 -p 9528:9528 \
 -v /opt/docker_volume/nginx/html:/usr/share/nginx/html \
--v /opt/docker_volume/nginx/conf/nginx:/etc/nginx \
+-v /opt/docker_volume/nginx/conf:/etc/nginx \
 -d nginx
 ```
 
