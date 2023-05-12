@@ -5,7 +5,7 @@ import lombok.Getter;
 
 /**
  * 订单状态枚举
- *
+ * TODO 订单状态枚举和数据库的注释不一致
  * @author haoxr
  * @date 2022/11/28
  */

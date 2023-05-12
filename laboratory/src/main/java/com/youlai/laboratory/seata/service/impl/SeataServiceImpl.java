@@ -32,9 +32,9 @@ public class SeataServiceImpl implements SeataService {
     private final MemberFeignClient memberFeignClient;
 
 
-    private static Long skuId = 1l; // SkuID
-    private static Long memberId = 1l; // 会员ID
-    private static Long orderId = 1l;// 订单ID
+    private static final Long skuId = 1L; // SkuID
+    private static final Long memberId = 1L; // 会员ID
+    private static final Long orderId = 1L;// 订单ID
 
 
     /**
@@ -76,7 +76,7 @@ public class SeataServiceImpl implements SeataService {
     public boolean resetData() {
         skuFeignClient.resetStock(skuId); // 还原库存
         memberFeignClient.resetBalance(memberId); // 还原余额
-        orderFeignClient.resetOrder(orderId); // 删除订单
+        orderFeignClient.resetOrder(orderId); // 重置订单支付状态为未付款
         return true;
 
     }
