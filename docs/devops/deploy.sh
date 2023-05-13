@@ -6,7 +6,7 @@ module_name_suffix=$4
 DOCKER_USERNAME=$5
 DOCKER_PASSWORD=$6
 # 登陆harbor
-echo "$DOCKER_PASSWORD" | docker login http://harbor.howlaisi.com:30002 -u "$DOCKER_USERNAME" --password-stdin
+echo "$DOCKER_PASSWORD" | docker login http://192.168.210.100:5000 -u "$DOCKER_USERNAME" --password-stdin
 # 停掉容器
 if [ -n "$docker_hub_namespace" -a -n "$module_name_suffix" ]
 then
