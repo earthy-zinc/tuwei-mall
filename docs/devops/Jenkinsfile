@@ -3,7 +3,7 @@ properties([
         [$class: "ChoiceParameterDefinition",
               description: "你需要选择哪条分支进行构建?",
               name: "branch_name",
-              choices: ["youlai_k8s_deploy", "master"]
+              choices: ["master"]
         ],
         [$class: "ChoiceParameter",
             choiceType: "PT_SINGLE_SELECT",
@@ -18,13 +18,13 @@ properties([
                     classpath: [],
                     sandbox: false,
                     script:
-                        '''return["Could not get module_name"]'''
+                        '''return ["Could not get module_name"]'''
                 ],
                 script: [
                     classpath: [],
                     sandbox: false,
                     script:
-                        '''return["youlai-gateway", "youlai-auth","youlai-admin/admin-boot","mall-oms/oms-boot","mall-pms/pms-boot","mall-sms/sms-boot","mall-ums/ums-boot"]
+                        '''return ["youlai-gateway", "youlai-auth","youlai-admin/admin-boot","mall-oms/oms-boot","mall-pms/pms-boot","mall-sms/sms-boot","mall-ums/ums-boot"]
                         '''
                 ]
             ]
@@ -43,23 +43,23 @@ properties([
                     classpath: [],
                     sandbox: false,
                     script:
-                        '''return["Could not get Environment from module_name Param"]'''
+                        '''return ["Could not get Environment from module_name Param"]'''
                 ],
                 script: [
                     classpath: [],
                     sandbox: false,
                     script:
                         '''if (module_name.equals("youlai-gateway")){
-                                return["192.168.210.100"]
+                                return ["192.168.210.100"]
                             }
                             else if(module_name.equals("mall-ums/ums-boot")){
-                                return["192.168.210.100"]
+                                return ["192.168.210.100"]
                             }
                             else if(module_name.equals("mall-oms/oms-boot")){
-                                return["192.168.210.100"]
+                                return ["192.168.210.100"]
                             }
                             else {
-                                return["192.168.210.100"]
+                                return ["192.168.210.100"]
                             }
                         '''
                 ]
@@ -73,7 +73,7 @@ properties([
 pipeline { // 直接上机器，在机器上启容器
     agent {
         node {
-            label "maven"
+            label "master"
         }
     }
 
@@ -154,7 +154,7 @@ pipeline { // 直接上机器，在机器上启容器
         stage("打包镜像") {
             steps {
                 script {
-                    container ('maven') {
+                    container ('master') {
                         // 最外边
                         sh "mvn clean install -Dmaven.test.skip=true"
                         sh "mvn -f ${module_name} clean package dockerfile:build -Ddockerfile.tag=${current_build_number}_${GIT_COMMIT_ID} -Dmaven.test.skip=true -Dspring.profiles.active=dev"
