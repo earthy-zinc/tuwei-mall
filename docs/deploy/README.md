@@ -590,7 +590,9 @@ exit
 
 
 
-### docker仓库搭建
+### docker registry仓库搭建
+
+不推荐
 
 #### 创建和启动容器
 
@@ -646,7 +648,61 @@ docker push Host:Port/Repository:Tag
 docker pull Host:Port/Repository:Tag
 ```
 
-### maven仓库搭建
+### docker harbor仓库搭建
+
+#### 安装docker-compose
+```bash
+sudo curl -L https://github.com/docker/compose/releases/download/v2.17.3/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+```
+
+#### 下载harbor镜像仓库
+
+```bash
+wget https://storage.googleapis.com/harbor-releases/release-1.10.0/harbor-offline-installer-v1.10.1-rc1.tgz
+
+# 解压下载文件
+tar zxf harbor-offline-installer-v1.10.1-rc1.tgz
+```
+
+
+#### 修改harbor.yml配置文件
+```yml
+hostname: 192.168.210.100  #这里配置的监听地址，也可以是域名
+port: 5000 #这里配置监听端口
+harbor_admin_password: 123456  # 配置admin用户的密码
+data_volume: /data/harbor  #配置数据仓库
+# 注释掉https块，不注释会报错
+```
+
+#### 安装harbor
+```bash
+./install.sh
+```
+
+> 注意harbor会创建redis和nginx容器，当前已启动容器中不能存在同名容器
+
+#### 访问harbor界面
+
+http://192.168.210.100:5000
+* 用户：admin 
+* 密码：123456
+
+#### 配置harbor为本地仓库
+需要在每个节点都配置
+```bash
+vi /etc/docker/daemon.json
+
+“insecure-registries” : [“http://192.168.210.100:5000”]
+```
+配置完成后需要重启docker
+```bash
+systemctl restart docker
+```
+
+
+
+### maven/npm仓库搭建
 
 #### 创建和启动容器
 
@@ -784,8 +840,251 @@ sonatype/nexus3
 
 
 
-### npm仓库的搭建
+### sonarqube的搭建
 
+#### 安装postgresql数据库
+
+- 官网上已经声明 sonarQube 7.9 版本以上不再支持 mysql 了，所以我们使用 postgresql
+
+```bash
+# 1、安装镜像
+docker pull postgres:11
+# 2、新建目录
+mkdir -p /home/apps/postgres/{postgresql,data}
+# 3、创建并启动
+docker run -d --name postgres -p 5432:5432 \
+-v /home/apps/postgres/postgresql:/var/lib/postgresql \
+-v /home/apps/postgres/data:/var/lib/postgresql/data \
+-v /etc/localtime:/etc/localtime:ro \
+-e POSTGRES_USER=admin \
+-e POSTGRES_PASSWORD=123456 \
+-e POSTGRES_DB=sonar \
+-e TZ=Asia/Shanghai \
+--restart always \
+--privileged=true \
+postgres:11
+```
+
+
+
+#### sysctl设置
+不设置的话启动sonar的时候会报错，启动不起来
+
+```bash
+# 修改内核参数
+echo "vm.max_map_count=262144" >> /etc/sysctl.conf
+# 重启
+sysctl -p
+```
+
+#### 创建目录，并授予权限
+
+```bash
+mkdir -p /data/sonarqube/{conf,data,logs,extensions}
+mkdir -p /data/postgres/{postgresql,data}
+chmod -R 777 /data/sonarqube
+```
+
+#### 创建并启动容器
+
+##### 选择1：准备docker-compose文件
+
+```bash
+vi docker-compose.yml
+
+version: '3'
+services:
+  postgres:
+    image: postgres:12
+    restart: always
+    container_name: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - /data/postgres/postgresql/:/var/lib/postgresql
+      - /data/postgres/data/:/var/lib/postgresql/data
+    environment:
+      TZ: Asia/Shanghai
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar123
+      POSTGRES_DB: sonar
+    networks:
+      - sonar-network
+  sonar:
+    image: sonarqube:8.2-community
+    restart: always
+    container_name: sonar
+    depends_on:
+      - postgres
+    volumes:
+      - /data/sonarqube/extensions:/opt/sonarqube/extensions
+      - /data/sonarqube/logs:/opt/sonarqube/logs
+      - /data/sonarqube/data:/opt/sonarqube/data
+      - /data/sonarqube/conf:/opt/sonarqube/conf
+    ports:
+      - 9000:9000
+    environment:
+      TZ: Asia/Shanghai
+      SONARQUBE_JDBC_USERNAME: sonar
+      SONARQUBE_JDBC_PASSWORD: sonar123
+      SONARQUBE_JDBC_URL: jdbc:postgresql://postgres:5432/sonar
+    networks:
+      - sonar-network
+networks:
+  sonar-network:
+    driver: bridge
+```
+
+使用`docker-compose up -d `运行该文件
+
+##### 选择2
+
+```bash
+docker run -d --name sonarqube -p 9000:9000 \
+--link postgres \
+-v /home/apps/sonarqube/extensions:/opt/sonarqube/extensions \
+-v /home/apps/sonarqube/logs:/opt/sonarqube/logs \
+-v /home/apps/sonarqube/data:/opt/sonarqube/data \
+-e SONARQUBE_JDBC_URL=jdbc:postgresql://postgres:5432/sonar \
+-e SONARQUBE_JDBC_USERNAME=admin \
+-e SONARQUBE_JDBC_PASSWORD=123456 \
+--restart always \
+--privileged=true \
+sonarqube:8.9.2-community
+```
+
+
+
+#### 访问控制台
+
+地址：http://192.168.59.129:9000/
+默认账号：admin 密码：admin
+
+#### 插件安装
+
+##### 离线方式
+离线安装汉化包下载地址（不同版本对应地址）：https://github.com/SonarQubeCommunity/sonar-l10n-zh/tags
+
+配置汉化包
+下载完成之后将下载的jar包放到/data/sonarqube/extensions/plugins（注意看自己的目录）里面,没有plugins目录就创建该目录。
+
+重启sonar
+docker restart sonar
+
+##### 在线方式
+sonar应用市场安装中文插件
+
+常用插件：
+Chinese Pack – 中文语言包
+Checkstyle – Java 代码规范检查
+Crowd – Crowd 插件，实现统一登录
+JaCoCo – Java 代码覆盖率
+PMD – Java 静态代码扫描
+ShellCheck Analyzer – Shell 代码规范检查
+SonarCSS、SonarHTML、SonarJS等 – Sonar 针对不同编程语言代码分析
+在线方式经常会因为网络问题下载不了。
+
+#### 代码质量检测测试
+##### maven测试
+可以在页面上创建项目
+
+创建令牌，可以随意输入，选择项目预言和编译工具
+
+在下面就能看到maven命令了。
+这样就可以直接在idea控制台进行测试了
+
+###### 配置setting.xml（与配置项目pom.xml二选一）
+注意：此项非必须
+sonar插件在不配置的情况也是可以用的，如果每次不想带url、token等参数，而想简单的执行[mvn sonar:sonar]则需要在setting.xml将sonar信息配置进去
+```xml
+<settings>
+	<!-- pluginGroups也可以不配置 -->
+    <pluginGroups>
+        <pluginGroup>org.sonarsource.scanner.maven</pluginGroup>
+    </pluginGroups>
+    <profiles>
+        <profile>
+            <id>sonar</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <properties>
+                 <sonar.login>admin</sonar.login>          
+                   <sonar.password>admin</sonar.password>
+                   <sonar.host.url>http://192.168.59.129:9000</sonar.host.url>
+                   <!-- 高版本的sonar需要指定编译的路径 -->
+				   <sonar.java.binaries>target/classes</sonar.java.binaries> 
+            </properties>
+        </profile>
+     </profiles>
+     <!-- 官方未配置activeProfiles 但是个人建议配置上 -->
+     <activeProfiles>
+     	<!-- 这步配置，sonar的profile配置才能生效 -->
+		<activeProfile>sonar</activeProfile>
+     </activeProfiles>
+</settings>
+```
+
+配置完成后执行如下命令即可扫描
+`mvn sonar:sonar`
+###### 配置pom.xml(与配置setting.xml二选一)
+如果不想修改setting.xml，可考虑在pom文件里直接引入sonar插件即可
+在project->build->plugins 下增加如下插件
+
+```xml
+<!-- sonar插件 -->
+<plugin>
+	<groupId>org.sonarsource.scanner.maven</groupId>
+	<artifactId>sonar-maven-plugin</artifactId>
+	<version>3.7.0.1746</version>
+</plugin>
+```
+
+重新编译即可使用sonar，需要注意的是sonar插件未传递token（或者username/password）、host、prokectKey时，需要在执行`mvn sonar:sonar`时带上
+检测完成后可以在sonar页面看到检测的结果
+
+
+##### sonar-scanner检测方式
+###### 安装sonar-scanner
+下载地址：
+https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.7.0.2747-linux.zip
+解压
+```bash
+unzip sonar-scanner-cli-4.7.0.2747-linux.zip
+mv sonar-scanner-4.7.0.2747-linux/ sonar-scanner
+```
+编辑/etc/profile，在底部追加：
+```
+export PATH=$PATH:/root/sonar-scanner/bin
+```
+然后执行`source /etc/profile`，使修改后的环境变量生效
+执行`sonar-scanner -v`
+
+在项目根目录下新建文件sonar-project.properties，添加如下配置
+```properties
+#sonarqube服务器地址
+sonar.host.url=http://192.168.59.129:9000
+#sonarqube用户名
+sonar.login=admin
+#sonarqube密码
+sonar.password=admin
+#项目唯一标识（不能出现重复）
+sonar.projectKey=hello-demo
+#项目名称
+sonar.projectName=hello-demo
+#源代码目录
+sonar.sources=src/main
+#编译生成的class文件的所在目录
+sonar.java.binaries=target
+#版本号
+sonar.projectVersion=0.0.1-SNAPSHOT
+#语言
+sonar.language=java
+#源代码文件编码
+sonar.sourceEncoding=UTF-8
+```
+
+然后在项目根目录运行命令` sonar-scanner`
 
 
 ### nginx搭建
