@@ -76,8 +76,6 @@ public class OmsOrderServiceImpl extends ServiceImpl<OrderMapper, OmsOrder> impl
                 .set(OmsOrder::getOrderSn, orderSn)
                 .set(OmsOrder::getStatus, OrderStatusEnum.PAID.getValue())
         );
-
         return result;
     }
-
 }

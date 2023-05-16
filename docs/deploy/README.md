@@ -176,7 +176,7 @@ docker run -d --name nacos \
 -p 8848:8848 \
 -e MODE=standalone \
 -e JVM_XMS=256m \
--e JVM_XMX=512m \
+-e JVM_XMX=2048m \
 -e SPRING_DATASOURCE_PLATFORM=mysql \
 -e MYSQL_SERVICE_HOST=192.168.210.100 \
 -e MYSQL_SERVICE_PORT=3306 \

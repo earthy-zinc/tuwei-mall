@@ -12,10 +12,10 @@ spring:
     nacos:
       # 注册中心
       discovery:
-        server-addr: http://192.168.210.100:8848
+        server-addr: http://10.16.69.93:8848
       # 配置中心
       config:
-        server-addr: http://192.168.210.100:8848
+        server-addr: http://10.16.69.93:8848
         file-extension: yaml
         # 公共配置
         shared-configs[0]:
