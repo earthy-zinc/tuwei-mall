@@ -51,14 +51,18 @@ systemctl enable docker
 修改配置文件
 
 ```shell
-sudo vi /etc/docker/daemon.json
+sudo vim /etc/docker/daemon.json
 ```
 
 添加内容
 
 ```json
 {
-    "registry-mirrors": ["http://hub-mirror.c.163.com"]
+  "registry-mirrors":[
+                      "https://o65lma2s.mirror.aliyuncs.com",
+                      "http://hub-mirror.c.163.com"
+                     ],
+  "insecure-registries" :  ["192.168.210.100:5000"]
 }
 ```
 
@@ -1195,6 +1199,50 @@ docker run --restart=always \
 - `youlai-admin` → `admin-boot` 模块的启动类 AdminApplication 启动系统服务；
 - 至此完成基础服务的启动，商城服务按需启动，启动方式和 `youlai-admin` 一致；
 - 访问接口文档地址测试: [http://localhost:9999/doc.html ](http://localhost:9999/doc.html)。
+
+```bash
+# 启动网关
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/youlai-gateway
+docker build -t youlai-gateway:1.0 .
+docker run --restart=always -p 9999:9999 --name youlai-gateway -d youlai-gateway:1.0
+
+# 启动鉴权
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/youlai-auth
+docker build -t youlai-auth:1.0 .
+docker run --restart=always -p 8998:8000 --name youlai-auth -d youlai-auth:1.0
+
+# 启动系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/youlai-system/system-boot
+docker build -t youlai-admin:1.0 .
+docker run --restart=always -p 8997:8800 --name youlai-admin -d youlai-admin:1.0
+
+# 启动订单系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/mall-oms/oms-boot
+docker build -t youlai-order:1.0 .
+docker run --restart=always -p 9002:8603 --name youlai-order -d youlai-order:1.0
+
+# 启动商品系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/mall-pms/pms-boot
+docker build -t youlai-product:1.0 .
+docker run --restart=always -p 9003:8802 --name youlai-product -d youlai-product:1.0
+
+# 启动营销系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/mall-sms/sms-boot
+docker build -t youlai-sell:1.0 .
+docker run --restart=always -p 9004:8804 --name youlai-sell -d youlai-sell:1.0
+
+# 启动用户系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/mall-ums/ums-boot
+docker build -t youlai-user:1.0 .
+docker run --restart=always -p 9005:8601 --name youlai-user -d youlai-user:1.0
+
+# 启动实验室系统
+cd /opt/docker_volume/jenkins/workspace/tuwei-mall/laboratory
+docker build -t youlai-laboratory:1.0 .
+docker run --restart=always -p 9006:8000 --name youlai-laboratory -d youlai-laboratory:1.0
+```
+
+
 
 ### 前端启动
 
