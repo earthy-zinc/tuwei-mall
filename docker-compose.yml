@@ -1,0 +1,116 @@
+version: "3"
+
+services:
+  mysql:
+    image: mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - /opt/docker_volume/mysql/log:/var/log/mysql
+      - /opt/docker_volume/mysql/data:/var/lib/mysql
+      - /opt/docker_volume/mysql/conf:/etc/mysql/conf.d
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456
+    privileged: true
+    restart: always
+    container_name: mysql
+  # 未完成
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - /opt/docker_volume/redis/redis.conf:/etc/redis/redis.conf
+      - /opt/docker_volume/redis/data:/data
+    environment:
+      - appendonly=yes
+      - requirepass=142536aA
+    command:
+      - redis-server /etc/redis/redis.conf
+    restart: always
+    container_name: redis
+    logging:
+      options:
+        max-size: 100m
+        max-file: 2
+  nacos:
+    image: nacos/nacos-server:2.0.3
+    ports:
+      - "8848:8848"
+    volumes:
+      - /opt/docker_volume/nacos:/home/nacos/logs
+    environment:
+      - MODE=standalone
+      - JVM_XMS=256m
+      - JVM_XMX=2048m
+      - SPRING_DATASOURCE_PLATFORM=mysql
+      - MYSQL_SERVICE_HOST=192.168.210.100
+      - MYSQL_SERVICE_PORT=3306
+      - MYSQL_SERVICE_DB_NAME=nacos
+      - MYSQL_SERVICE_USER=root
+      - MYSQL_SERVICE_PASSWORD=123456
+      - MYSQL_DATABASE_NUM=1
+      - MYSQL_SERVICE_DB_PARAM="characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=true&serverTimezone=UTC"
+    restart: always
+    container_name: nacos
+    depends_on:
+      - mysql
+  seata:
+    image: seataio/seata-server:1.5.2
+    ports:
+      - "8091:8091"
+      - "7091:7091"
+    volumes:
+      - /opt/docker_volume/seata/config/resources:/seata-server/resources
+    environment:
+      - "SEATA_IP=192.168.210.100"
+    restart: always
+    container_name: seata
+  jenkins:
+    image: jenkins/jenkins:2.404
+    ports:
+      - "8000:8080"
+      - "50000:5000"
+    volumes:
+      - /opt/docker_volume/jenkins:/var/jenkins_home
+      - /usr/local/src/jdk/jdk1.8.0_351:/usr/local/jdk
+      - /usr/local/maven/apache-maven-3.8.5:/usr/local/maven
+      - /usr/local/git/git-2.33.1/bin/git:/usr/local/git
+      - /etc/localtime:/etc/localtime
+    privileged: true
+    restart: always
+    container_name: jenkins
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    ports:
+      - "80:80"
+      - "9922:22"
+    volumes:
+      - /opt/docker_volume/gitlab/etc:/etc/gitlab
+      - /opt/docker_volume/gitlab/log:/var/log/gitlab
+      - /opt/docker_volume/gitlab/opt:/var/opt/gitlab
+    restart: always
+    privileged: true
+    container_name: gitlab
+  nexus:
+    image: sonatype/nexus3
+    ports:
+      - "8081:8081"
+    volumes:
+      - "/opt/docker_volume/nexus:/nexus-data"
+    environment:
+      - NEXUS_CONTEXT=nexus
+    restart: always
+    container_name: nexus
+  nginx:
+    image: nginx
+    ports:
+      - "9531:9531"
+      - "9532:9532"
+    volumes:
+      - /opt/docker_volume/nginx/conf/nginx.conf:/etc/nginx/nginx.conf
+      - /opt/docker_volume/nginx/conf/conf.d:/etc/nginx/conf.d
+      - /opt/docker_volume/nginx/log:/var/log/nginx
+      - /opt/docker_volume/nginx/html:/usr/share/nginx/html
+    container_name: nginx
+

@@ -12,6 +12,7 @@ spring:
       # 注册中心
       discovery:
         server-addr: http://10.16.69.93:8848
+        ip: 10.16.69.93
       # 配置中心
       config:
         server-addr: http://10.16.69.93:8848
