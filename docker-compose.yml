@@ -14,7 +14,6 @@ services:
     privileged: true
     restart: always
     container_name: mysql
-  # 未完成
   redis:
     image: redis
     ports:
@@ -22,11 +21,8 @@ services:
     volumes:
       - /opt/docker_volume/redis/redis.conf:/etc/redis/redis.conf
       - /opt/docker_volume/redis/data:/data
-    environment:
-      - appendonly=yes
-      - requirepass=142536aA
     command:
-      - redis-server /etc/redis/redis.conf
+      - redis-server /etc/redis/redis.conf --appendonly=yes --requirepass=142536aA
     restart: always
     container_name: redis
     logging:
@@ -64,6 +60,8 @@ services:
       - /opt/docker_volume/seata/config/resources:/seata-server/resources
     environment:
       - "SEATA_IP=192.168.210.100"
+    depends_on:
+      - nacos
     restart: always
     container_name: seata
   jenkins:
