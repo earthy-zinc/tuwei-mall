@@ -84,7 +84,7 @@ pipeline { // 直接上机器，在机器上启容器
 
         // 自建镜像仓库地址
         docker_hub = "192.168.210.100:5000"
-        docker_hub_ext = "192.168.210.101:5000"
+        docker_hub_ext = "192.168.31.2:5000"
         // docker_hub = "https://registry.cn-hangzhou.aliyuncs.com"
 
         // 在jenknis或kubesphere上面的凭证
