@@ -9,7 +9,7 @@ out
 gen
 target
 *.log
-
+**/target/
 # Nacos
 !**/nacos/target
 **/nacos/bin/work
