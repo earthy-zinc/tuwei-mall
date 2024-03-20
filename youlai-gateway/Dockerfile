@@ -1,6 +1,4 @@
 FROM openjdk:8-jre
-MAINTAINER youlai youlaitech@163.com
-
 
 RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \&& echo 'Asia/Shanghai' >/etc/timezone
 

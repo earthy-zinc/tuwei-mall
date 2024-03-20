@@ -12,7 +12,7 @@ spring:
     nacos:
       # 注册中心
       discovery:
-        server-addr: http://192.168.31.2:8848
+        server-addr: http://47.120.48.158:8848
         namespace: prod-namespace-id
       # 配置中心
       config:

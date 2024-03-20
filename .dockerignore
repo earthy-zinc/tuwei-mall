@@ -1,0 +1,8 @@
+*
+!mall-oms/oms-boot/target/*.jar
+!mall-pms/pms-boot/target/*.jar
+!mall-sms/sms-boot/target/*.jar
+!mall-ums/ums-boot/target/*.jar
+!youlai-system/system-boot/target/*.jar
+!youlai-gateway/target/*.jar
+!youlai-auth/target/*.jar
